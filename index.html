@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live TV Portal — Netlify</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+/* --- Styles --- */
+body{margin:0;padding:0;background:#000;color:#fff;font-family:Poppins,sans-serif;}
+h2{text-align:center;padding:15px 0;color:#ffcc00;text-shadow:0 0 8px #ffcc00;margin:10px 0;}
+.container{padding:0 10px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px;padding:10px 0;justify-items:center;}
+.channel{width:120px;background:#111;border:2px solid #ffcc00;border-radius:12px;cursor:pointer;text-align:center;padding:8px;transition:0.25s;}
+.channel:hover{transform:scale(1.05);box-shadow:0 0 20px rgba(255,204,0,0.7);}
+.channel img{width:100%;height:100px;object-fit:contain;border-radius:8px;}
+.channel span{display:block;margin-top:5px;font-size:14px;color:#ffcc00;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* Player Overlay Styles */
+#playerOverlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);
+    z-index:1000;display:none;align-items:center;justify-content:center;
+    flex-direction:column;
+}
+#playerContainer{width:90%;max-width:980px;height:56vh;max-height:98vh;background:#000;position:relative;border-radius:10px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.7);}
+#playerVideo{width:100%;height:100%;background:#000;display:block;outline:none;transform-origin:center center;}
+#closeOverlay{
+    position:absolute;top:12px;right:12px;background:rgba(255,0,0,0.9);color:white;
+    border:none;border-radius:50%;width:36px;height:36px;font-size:18px;
+    cursor:pointer;z-index:1001;
+}
+#playMsg{color:#fff;margin:12px 0 0;font-size:16px;text-align:center;}
+
+/* rotate fallback class (used when orientation lock fails) */
+.rotate-landscape {
+  transform: rotate(90deg) !important;
+  transform-origin: center center;
+  width:100vh !important;
+  height:100vw !important;
+}
+
+/* Fullscreen adjustments */
+:fullscreen #playerContainer,
+:-webkit-full-screen #playerContainer {
+  width:100vw !important;
+  height:100vh !important;
+}
+:fullscreen #playerVideo,
+:-webkit-full-screen #playerVideo {
+  width:100vw !important;
+  height:100vh !important;
+}
+
+/* small screen tweaks */
+@media(max-width:520px){
+  .channel img{height:90px}
+  #playerContainer{height:52vh}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h2>📺 Odia Live TV</h2>
+<div class="grid" id="grid-odia">
+
+  <div class="channel" data-src="https://www.youtube.com/embed/XbJGiL8d6nI?autoplay=1">
+    <img src="https://i.ytimg.com/vi/XbJGiL8d6nI/hqdefault.jpg" alt="YouTube Live Odia">
+    <span>jay jagannath tv</span>
+  </div>
+  <div class="channel" data-src="https://livetv.tarangplus.in/otv-origin/live/otv-origin/live_720p/chunks.m3u8">
+    <img src="https://i.supaimg.com/95d721c1-4ba3-4a25-9d7e-10c68916deae.png" alt="OTV Odia">
+    <span>OTV Odia</span>
+  </div>
+  <div class="channel" data-src="https://livetv.tarangplus.in/prarthana-origin/live/prarthana-origin/live_720p/chunks.m3u8">
+    <img src="https://i.supaimg.com/d667615d-a976-4906-9d0c-326fe4d9d741.jpg" alt="Jai Jagannath TV">
+    <span>prathana TV</span>
+  </div>
+  <div class="channel" data-src="http://b1g.uk/live/123456/12345/192759.ts">
+    <img src="https://i.supaimg.com/65490e7e-0f8f-4922-8b11-36fd01102f8f.png" alt="News18 Odia">
+    <span>News18 Odia</span>
+  </div>
+  <div class="channel" data-src="https://www.nandighoshatvlive.com/hls/stream/index.m3u8">
+    <img src="https://i.supaimg.com/48140abd-ac93-43d1-b618-038bf2dc2623.png" alt="Nandighosha TV">
+    <span>Nandighosha TV</span>
+  </div>
+  <div class="channel" data-src="https://d35j504z0x2vu2.cloudfront.net/v1/master/0bc8e8376bd8417a1b6761138aa41c26c7309312/prameya-news7/index.m3u8">
+    <img src="https://i.supaimg.com/7eb6c294-3a46-42c6-917b-a225ffbe5e1d.jpg" alt="News7 Odia">
+    <span>News7 Odia</span>
+  </div>
+  <div class="channel" data-src="https://livetv.tarangplus.in/tarangtv-origin/live/tarangtv-origin/live_720p/chunks.m3u8">
+    <img src="https://i.supaimg.com/72e3f87e-d79e-4760-ba75-3a07cfc33b47.png" alt="Tarang TV">
+    <span>Tarang TV</span>
+  </div>
+  <div class="channel" data-src="https://livetv.tarangplus.in/alankar-origin/live/playlist.m3u8">
+    <img src="https://i.supaimg.com/3e7a3dce-2168-4174-bfd2-7e45df8a671c.webp" alt="Alankar TV">
+    <span>Alankar TV</span>
+  </div>
+  <div class="channel" data-src="https://livetv.tarangplus.in/tarangmusic-origin/live/tarangmusic-origin/live_720p/chunks.m3u8">
+    <img src="https://i.supaimg.com/94fc1595-abe4-48f6-a399-51f23bced0bd.jpg" alt="Tarang Music">
+    <span>Tarang Music</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/139239.ts">
+    <img src="https://i.supaimg.com/7f4cc0ff-0694-477b-953e-e4059b381a66.jpg" alt="Kalinga TV">
+    <span>Kalinga TV</span>
+  </div>
+  <div class="channel" data-src="https://ythls.armelin.one/channel/UCDm8Eyx1bK4y9zIxgQyUjWw.m3u8">
+    <img src="https://i.supaimg.com/95d721c1-4ba3-4a25-9d7e-10c68916deae.png" alt="Colors Odia">
+    <span>Colors Odia</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/139238.ts">
+    <img src="https://i.supaimg.com/f8b77223-95ef-4943-8d4e-3e10c48e737f.png" alt="Kanak News">
+    <span>Kanak News</span>
+  </div>
+  <div class="channel" data-src="https://ythls.armelin.one/channel/UCmhqS8NV4BAn7rFZ0qsnHYA.m3u8">
+    <img src="https://i.supaimg.com/474c9cee-51b5-4bce-9241-39905cb9cd32.png" alt="MBC TV">
+    <span>MBC TV</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/139238.ts">
+    <img src="https://i.supaimg.com/65490e7e-0f8f-4922-8b11-36fd01102f8f.png" alt="Prameya News">
+    <span>Prameya News</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c367195c76ad6a9632154e2c70/index.m3u8?token=5e5c760d041637946cf8d518281eb3ec5144d7310bd5e60dbe68e5b533658c05f0bb772008783f757815d5320a0a5371ff73866bcdf7203e559a4c9dc02c74710a24bb73-bd03d841991361b9a2cb8d57bf3ca1e9">
+    <img src="https://i.supaimg.com/d9ccba16-d9e3-49e7-82d1-52da68e010b7.png" alt="sidharth gold">
+    <span>sidharth gold</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/139240.ts">
+    <img src="https://i.supaimg.com/a29954aa-3b76-44d3-96c9-a254ef8ebf30.jpg" alt="Bada khabar">
+    <span>Bada khabar</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c21049217f0ced/index.m3u8?token=64459ae7c91b050798b823887b61f8f214830b2354bba334f9f1131171a18513a65ca27e9dbf60ab446c1e49d7ff0ae57973c7595cc62b7e3fcd70865d7a4d00f4a18e3c-22e30bb38244e99364160a30b6ec917e">
+    <img src="https://i.supaimg.com/8a3b3946-8c3a-45f7-9934-8002e968c4dd.jpg" alt="sidharth utsav">
+    <span>sidharth utsav</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/153302.ts">
+    <img src="https://i.supaimg.com/781619ca-1a94-41a1-9efb-5b5ac51408a1.jpg" alt="Sidharth TV">
+    <span>Sidharth TV</span>
+  </div>
+
+</div>
+
+<h2>📰 Hindi News Channels</h2>
+<div class="grid" id="grid-hindi">
+
+<div class="channel" data-src="/proxy/live/God/God123/609629.ts">
+<img src="https://i.supaimg.com/4eca2f14-43ef-4a6a-9411-9d9892ec30a9.png" alt="News Channel 1">
+<span>Hindi News 1</span>
+</div>
+<div class="channel" data-src="https://nw18live.cdn.jio.com/bpk-tv/News18_India_NW18_MOB/output01/index.m3u8">
+<img src="https://i.supaimg.com/eba3c858-6bd4-4b20-a62e-604805e25502.jpg" alt="News Channel 2">
+<span>Hindi News 2</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/7259.ts">
+<img src="https://i.supaimg.com/6d88c5d6-a2e7-4373-87a6-153098ea552c.png" alt="News Channel 3">
+<span>Hindi News 3</span>
+</div>
+<div class="channel" data-src="https://feeds.intoday.in/aajtak/api/aajtakhd/master.m3u8">
+<img src="https://i.supaimg.com/f3c8120e-ba26-4e3c-9cf5-fb30f0fdc7fe.jpg" alt="News Channel 4">
+<span>Hindi News 4</span>
+</div>
+<div class="channel" data-src="https://nw18live.cdn.jio.com/bpk-tv/News18_India_NW18_MOB/output01/index.m3u8">
+<img src="https://i.supaimg.com/128ce764-490d-4aeb-9ccd-bedbe3252f42.jpg" alt="News Channel 5">
+<span>Hindi News 5</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/7430.ts">
+<img src="https://i.supaimg.com/d289c4e8-e2ab-4969-ba3f-5abbd6e3297a.png" alt="News Channel 6">
+<span>Hindi News 6</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/23566.ts">
+<img src="https://i.supaimg.com/1a5ff70e-fea1-44bb-beb4-4d538cfa7ca0.webp" alt="News Channel 7">
+<span>Hindi News 7</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/355507.ts">
+<img src="https://i.supaimg.com/bae71e6a-bbf5-4c69-b021-33272914a5ca.png" alt="News Channel 8">
+<span>Hindi News 8</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/9974.ts">
+<img src="https://i.supaimg.com/8e7f5bfd-be8d-41d9-ae55-49ef6a3d7ef5.png" alt="News Channel 9">
+<span>Hindi News 9</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/35714.ts">
+<img src="https://i.supaimg.com/3672d0c3-024f-49b6-b2b3-cae44ce8902f.png" alt="News Channel 10">
+<span>Hindi News 10</span>
+</div>
+<div class="channel" data-src="/proxy/live/God/God123/35714.ts">
+<img src="https://i.supaimg.com/57a698b1-b5ba-4569-8483-92b27f5b57f6.jpg" alt="News Channel 11">
+<span>Hindi News 11</span>
+</div>
+<div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c27a025b65b861902805523f7a19f018abb0/index.m3u8?token=7903b938a168a747d8c2cff3f5e791012d9acde98247ea5c036d272d8c427e07c075ace6bd37e0966cbd9bc1b4b9d888ce77218dd2fadddaacefd4397afe880eeefe3650-c9a6eb2f03db5eb64a274316cce92f99">
+<img src="https://i.supaimg.com/9adf7225-6d3d-477e-b07b-a20924c33e1b.png" alt="News Channel 12">
+<span>Hindi News 12</span>
+</div>
+<div class="channel" data-src="https://example.com/news13.ts">
+<img src="https://i.supaimg.com/sample13.png" alt="News Channel 13">
+<span>Hindi News 13</span>
+</div>
+<div class="channel" data-src="https://example.com/news14.ts">
+<img src="https://i.supaimg.com/sample14.png" alt="News Channel 14">
+<span>Hindi News 14</span>
+</div>
+<div class="channel" data-src="https://example.com/news15.ts">
+<img src="https://i.supaimg.com/sample15.png" alt="News Channel 15">
+<span>Hindi News 15</span>
+</div>
+
+</div>
+
+<h2>🏏 Cricket Channels</h2>
+<div class="grid" id="grid-cricket">
+
+<div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c37a1c4668ac6e913f06523f0013/index.m3u8?token=e4c84b2c9d2e01fc3e5e4bc4877eab98ca93d76e5b40f49d9df28b71ed86f63464c1ad4aa015e75e706302d56b0b592a541f9e3bf552c2d04a3bf13435c044c831a9c393-77190cb8d53f4199631bd22daa5183d7">
+    <img src="https://i.supaimg.com/16c2e151-8aea-421e-9fcc-18c2116af6ff.webp" alt="Cricket Channel 1">
+    <span>Cricket 1</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c27a025b65b8618d3913533f6708eb03b0adbe035ed9ec256ea2/index.m3u8?token=23cfdde040ca0848923c4f61adc91ad24860d69cc1f060b19df288bda8f901394d848f84994f1dbdc8009f9cc2dfe7ba800e5bf36ea9edaff93666364e3c6f37b831ff8e-ea3e885a22ad918b428bf6139aa199ca">
+    <img src="https://i.supaimg.com/41c6d219-4e90-4da8-b799-1bbbc118b3f3.png" alt="Cricket Channel 2">
+    <span>Cricket 2</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/148090.ts">
+    <img src="https://i.supaimg.com/dd26733b-4be7-4818-9bd3-c0143e999ccb.png" alt="Cricket Channel 3">
+    <span>Cricket 3</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/2494.ts">
+    <img src="https://i.supaimg.com/f871e543-ffb9-4e14-9366-998b9bc7d3df.png" alt="Cricket Channel 4">
+    <span>Cricket 4</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c27a025b65b8619f3e06532f6b1bf618a7b5a466/index.m3u8?token=32f9ec10af6f3e500be823b18a9e412b37b16edecf1ce5806f317c2379b49f17894fbf2b875292e3d289d92d86e2aa9be02ff35b9c56c849c93ed8f67a9e9c437c1f99b98a01-9f164bf32f8551b894b0a15bb448d22b">
+    <img src="https://i.supaimg.com/f871e543-ffb9-4e14-9366-998b9bc7d3df.png" alt="Cricket Channel 4">
+    <span>Cricket 4</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/146.ts">
+    <img src="https://i.supaimg.com/695c6ce8-da6a-41f8-b840-5e298de02ee4.png" alt="Cricket Channel 5">
+    <span>Cricket 5</span>
+  </div>
+  <div class="channel" data-src="/proxy/live/God/God123/176.ts">
+    <img src="https://i.supaimg.com/d2b7b573-2067-4529-812e-3d3b26550fa8.png" alt="Cricket Channel 6">
+    <span>Cricket 6</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c27a025b65b8618d260b5e336417f605b7a1a26048d2ee2e7eb4eba6/index.m3u8?token=fb29da780ebcfe1085f2725112291fb3450d1f7e2c71587ff66c998c5e25c99837a38ee5cc1aecb7198d304a788dabfe43d1eeb4ddfb6b0c0887dc43a568edb463f916852baa-8678b69c1ce00a7962163bd680eacb0b">
+    <img src="https://i.supaimg.com/4cb872b5-ff11-44e5-9ac9-ca060bb1c272.jpg" alt="Cricket Channel 7">
+    <span>Cricket 7</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c767115878a8618d3d1d53346707ec15/index.m3u8?token=9c5c3dc418c569f3cfdc8c7bc3617133823606f6c05d0fea6febf8875473b43086c8b67e09d200020e744fab29dbfed35b7f07d25f6129183ba8da0b5c51ca5764ee9d2e-c9978883c04cc2e4ec0ee7f5415403ed">
+    <img src="https://i.supaimg.com/d185ded6-4b7a-48c0-a055-04e051e90795.png" alt="Cricket Channel 8">
+    <span>Cricket 8</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29d661054767b06c8a3e0d40356b6d9464/index.m3u8?token=da84df932cc981bbcc8d74d60619c2abb83077a654efb8bde9f7ab84fd8a05febb169446942a6ca0d3cbc1d013e632ae183483d76db5bdfa2771db6342fad1b2daacb003-41eda57b0d7c140cb3845a2eb6a8da5b">
+    <img src="https://i.supaimg.com/fed6de58-f26c-439f-8a6d-77648716ff4d.png" alt="Cricket Channel 9">
+    <span>Cricket 9</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29d97e114b75b66c9a321758256b0eed14b3/index.m3u8?token=3bfda26e69441dbac4fd69430bce6f905a66bab91df6818d88712121d0f72decf394905a76f6d983df21986d96e9c879608c19537f61eef1c9fa00291297d610354d2397-0471e14a5aa09347c91dcac2c4f6c503">
+    <img src="https://i.supaimg.com/134c0211-b6bc-4e8d-a836-cc899f3a7526.png" alt="Cricket Channel 10">
+    <span>Cricket 10</span>
+  </div>
+  <div class="channel" data-src="/proxy-spr1/8ff02c8d28529b59b9bdbf3c29c37e124663ac61ef550d472870/index.m3u8?filter=tracks:v1a1&token=987c9dc2fbb6610a84992dbca0ab6f09a88529f4b4fc65aacb175b040f8e6be521559c57e6ba79727e179d702ef4d544ee0d8124754b2ea214727ac22fa1314fe34007f2-33bf6167fff7d67363ef73a475bcaa98">
+    <img src="https://i.supaimg.com/8d5d313c-f089-4981-8ea4-10871ba029ca.png" alt="Cricket Channel 11">
+    <span>Cricket 11</span>
+  </div>
+
+</div>
+
+<h2>🎬 Movies Section</h2>
+<div class="grid" id="grid-movies">
+  <div class="channel" data-src="/proxy/movie/God/God123/472209.mkv">
+    <img src="https://i.supaimg.com/9b9d8477-3fd2-410d-a775-bb90a9b29f53.jpg" alt="Bollywood Hits">
+    <span>Bollywood Hits</span>
+  </div>
+</div>
+
+</div>
+
+<!-- Player overlay -->
+<div id="playerOverlay" aria-hidden="true">
+    <div id="playerContainer">
+        <button id="closeOverlay" title="Close">✕</button>
+        <video id="playerVideo" controls playsinline></video> 
+    </div>
+    <div id="playerControls">
+        <p id="playMsg">Loading Stream...</p>
+    </div>
+</div>
+
+<script>
+// --- GLOBAL ELEMENTS & VARIABLES ---
+const overlay = document.getElementById('playerOverlay');
+const playerContainer = document.getElementById('playerContainer');
+const playerVideo = document.getElementById('playerVideo');
+const playMsg = document.getElementById('playMsg');
+const closeOverlay = document.getElementById('closeOverlay');
+
+let hls = null;
+let currentChannelType = 'video';
+let currentIframe = null;
+let refreshTimer = null;
+const REFRESH_INTERVAL_MS = 8 * 60 * 1000; // 8 minutes
+let usedRotateFallback = false;
+
+// Helper: Normalize URLs (handle /proxy, /proxy-spr1 from your older files)
+function normalizeUpstream(u){
+  if(!u) return u;
+  if(/^https?:\/\//i.test(u)) return u; // already absolute
+  if(u.startsWith('/proxy-spr1/')){
+    return 'http://spr1.packetcdn.me:2800' + u.replace('/proxy-spr1','');
+  }
+  if(u.startsWith('/proxy/')){
+    return 'https://techstop.online' + u.replace('/proxy','');
+  }
+  return u;
+}
+
+// Wrap with Netlify Function proxy
+function proxied(u){
+  return '/.netlify/functions/proxy?u=' + encodeURIComponent(u);
+}
+
+// Utility: request fullscreen on the playerContainer (cross-browser)
+async function requestFullscreenFor(el){
+  if (!el) return Promise.reject('No element');
+  if (el.requestFullscreen) return el.requestFullscreen();
+  if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+  if (el.msRequestFullscreen) return el.msRequestFullscreen();
+  return Promise.reject('Fullscreen not supported');
+}
+
+// Try orientation lock
+async function tryLockLandscape(){
+  if (screen.orientation && screen.orientation.lock){
+    try { await screen.orientation.lock('landscape'); return true; } 
+    catch (err) { return false; }
+  }
+  return false;
+}
+
+function showOverlay(){
+  overlay.style.display = 'flex';
+  overlay.setAttribute('aria-hidden','false');
+}
+async function hideOverlay(){
+  overlay.style.display = 'none';
+  overlay.setAttribute('aria-hidden','true');
+
+  if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+  if (hls){ try{ hls.destroy(); } catch(e){} hls = null; }
+
+  // stop and clear video
+  try{ playerVideo.pause(); playerVideo.removeAttribute('src'); playerVideo.load(); }catch(e){}
+  playerVideo.style.display = 'block';
+
+  // remove rotate fallback if used
+  if (usedRotateFallback){
+    playerVideo.classList.remove('rotate-landscape');
+    usedRotateFallback = false;
+  }
+
+  // try to unlock orientation
+  if (screen.orientation && screen.orientation.unlock){
+    try{ screen.orientation.unlock(); } catch(e){}
+  }
+
+  // exit fullscreen if active (best effort)
+  if(document.fullscreenElement){
+    try{ await document.exitFullscreen(); }catch(e){}
+  }
+  playMsg.textContent = 'Stopped';
+}
+
+closeOverlay.addEventListener('click', hideOverlay);
+
+// Fullscreenchange handler: undo rotate fallback and unlock if user exits manually
+document.addEventListener('fullscreenchange', () => {
+  const isFs = !!document.fullscreenElement;
+  if (!isFs){
+    if (usedRotateFallback){
+      playerVideo.classList.remove('rotate-landscape');
+      usedRotateFallback = false;
+    }
+    if (screen.orientation && screen.orientation.unlock){
+      try{ screen.orientation.unlock(); } catch(e){}
+    }
+  }
+});
+
+// --- Stream Playback Logic ---
+async function openStream(url, channelName = 'Live Stream'){
+  showOverlay();
+  playMsg.textContent = `Preparing: ${channelName}...`;
+
+  // cleanup previous
+  if (refreshTimer){ clearTimeout(refreshTimer); refreshTimer = null; }
+  if (hls){ try{ hls.destroy(); } catch(e){} hls = null; }
+  if (currentIframe){ currentIframe.remove(); currentIframe = null; }
+  playerVideo.style.display = 'block';
+  playerVideo.removeAttribute('src');
+
+  // set refresh timer for tokened/proxied URLs
+  if (url.includes('token=') || url.includes('/proxy') || url.includes('/proxy-spr1')){
+    refreshTimer = setTimeout(() => {
+      playMsg.textContent = `Auto-reloading stream...`;
+      openStream(url, channelName);
+    }, REFRESH_INTERVAL_MS);
+  }
+
+  // request fullscreen first (in user gesture)
+  try { await requestFullscreenFor(playerContainer).catch(()=>{}); } catch(e){}
+
+  // Try to lock orientation; if fails, apply rotate fallback
+  const locked = await tryLockLandscape();
+  if (!locked){
+    setTimeout(()=> {
+      playerVideo.classList.add('rotate-landscape');
+      usedRotateFallback = true;
+    }, 300);
+  }
+
+  // YouTube embed handling
+  if (url.includes('youtube.com/embed') || url.includes('youtube.com/watch')){
+    currentChannelType = 'iframe';
+    currentIframe = document.createElement('iframe');
+    currentIframe.src = url;
+    currentIframe.width = '100%';
+    currentIframe.height = '100%';
+    currentIframe.frameBorder = '0';
+    currentIframe.allow = 'autoplay; encrypted-media; fullscreen';
+    currentIframe.setAttribute('allowfullscreen', 'true');
+    playerVideo.style.display = 'none';
+    playerContainer.insertBefore(currentIframe, playerVideo);
+    playMsg.textContent = `Opened YouTube: ${channelName}`;
+    return;
+  }
+
+  // Normalize + proxy URL
+  const upstream = normalizeUpstream(url);
+  const playUrl = /^https?:\/\//i.test(upstream) ? proxied(upstream) : upstream;
+
+  // HLS case
+  try {
+    if ((playUrl.endsWith('.m3u8') || playUrl.includes('.m3u8')) && window.Hls && Hls.isSupported()){
+      currentChannelType = 'video';
+      hls = new Hls();
+      hls.on(Hls.Events.ERROR, function (event, data) {
+        console.error('HLS error', data);
+        if (data && data.fatal){
+          playMsg.textContent = `Error: ${data.details} — trying direct src...`;
+          try { playerVideo.src = playUrl; playerVideo.play().catch(()=>{}); } catch(e){}
+        }
+      });
+      hls.loadSource(playUrl);
+      hls.attachMedia(playerVideo);
+      hls.on(Hls.Events.MANIFEST_PARSED, function(){
+        playMsg.textContent = `${channelName} loaded — playing...`;
+        playerVideo.play().catch(()=> { playMsg.textContent = `Tap Play to start ${channelName}`; });
+      });
+      return;
+    }
+  } catch(e){ console.warn('hls init error', e); }
+
+  // Direct video fallback (.ts, .mkv, etc.)
+  currentChannelType = 'video';
+  playerVideo.src = playUrl;
+  playerVideo.addEventListener('loadedmetadata', function onMeta(){
+    playerVideo.removeEventListener('loadedmetadata', onMeta);
+    playerVideo.play().catch(()=> { playMsg.textContent = `Tap Play to start ${channelName}`; });
+    playMsg.textContent = `${channelName} loaded — playing...`;
+  }, { once: true });
+
+  playerVideo.onerror = (e) => {
+      playMsg.textContent = `Error: Stream failed to play. Check URL/CORS.`;
+      console.error("Video element error:", e);
+  };
+}
+
+// Attach click listener to all channels
+document.querySelectorAll('.channel').forEach(ch=>{
+  ch.addEventListener('click', ()=> {
+    const url = ch.getAttribute('data-src');
+    const name = ch.querySelector('span') ? ch.querySelector('span').textContent : 'Live Stream';
+    if(url) openStream(url, name);
+  });
+});
+
+// Initial
+document.getElementById('playerOverlay').style.display = 'none';
+document.getElementById('playerOverlay').setAttribute('aria-hidden','true');
+</script>
+</body>
+</html>
